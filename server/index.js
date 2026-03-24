@@ -7,6 +7,8 @@ const Token = require('./models/Token');
 const stellarService = require('./services/stellar-service');
 const { errorHandler, notFoundHandler, asyncHandler, AppError } = require('./middleware/error-handler');
 const { setupSwagger } = require('./config/swagger');
+const { authenticate } = require('./middleware/auth');
+const authRoutes = require('./routes/auth-routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +37,10 @@ setupSwagger(app);
  *   "network": "Test SDF Network ; September 2015"
  * }
  */
+// Authentication Routes (Public)
+app.use('/api/auth', authRoutes);
+
+// Public Routes
 app.get('/api/status', (req, res) => {
   res.json({ status: 'Server is running', network: process.env.NETWORK_PASSPHRASE });
 });
@@ -62,6 +68,8 @@ app.get('/api/status', (req, res) => {
  * ]
  */
 app.get('/api/tokens/:owner', asyncHandler(async (req, res) => {
+// Protected Routes - Require Authentication
+app.get('/api/tokens/:owner', authenticate, asyncHandler(async (req, res) => {
   const tokens = await Token.find({ ownerPublicKey: req.params.owner });
   res.json(tokens);
 }));
@@ -97,6 +105,7 @@ app.get('/api/tokens/:owner', asyncHandler(async (req, res) => {
  * }
  */
 app.post('/api/tokens', asyncHandler(async (req, res) => {
+app.post('/api/tokens', authenticate, asyncHandler(async (req, res) => {
   const { name, symbol, decimals, contractId, ownerPublicKey } = req.body;
 
   // Validate required fields
