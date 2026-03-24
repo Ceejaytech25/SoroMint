@@ -77,8 +77,18 @@ impl SoroMintToken {
     /// # Events
     /// Emits a `mint` event with `(admin, to, amount, new_balance, new_supply)`.
     pub fn mint(e: Env, to: Address, amount: i128) {
+        if amount <= 0 {
+            panic!("mint amount must be positive");
+        }
         let admin: Address = e.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
+        let balance = Self::balance(e.clone(), to.clone());
+        let new_balance = balance.checked_add(amount).expect("balance overflow");
+        e.storage().persistent().set(&DataKey::Balance(to), &new_balance);
+        let supply: i128 = e.storage().instance().get(&DataKey::Supply).unwrap();
+        let new_supply = supply.checked_add(amount).expect("supply overflow");
+        e.storage().instance().set(&DataKey::Supply, &new_supply);
+    }
 
         let mut balance = Self::balance(e.clone(), to.clone());
         balance += amount;
@@ -168,3 +178,6 @@ impl SoroMintToken {
         events::emit_ownership_transfer(&e, &prev_admin, &new_admin);
     }
 }
+
+#[cfg(test)]
+mod test;
